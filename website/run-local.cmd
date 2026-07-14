@@ -1,5 +1,18 @@
 @echo off
 setlocal
+title aim-training local launcher
+
+call :main
+set "EXIT_CODE=%errorlevel%"
+if not "%EXIT_CODE%"=="0" (
+  echo.
+  echo [ERROR] Script finished with code %EXIT_CODE%.
+  echo Press any key to close this window.
+  pause >nul
+)
+exit /b %EXIT_CODE%
+
+:main
 cd /d "%~dp0"
 
 if exist "%USERPROFILE%\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin" (
@@ -33,4 +46,10 @@ if not exist node_modules (
   if errorlevel 1 exit /b 1
 )
 
-call %PM% run dev -- --host
+if exist "node_modules\vite\bin\vite.js" (
+  node "node_modules\vite\bin\vite.js" --host 127.0.0.1
+  exit /b %errorlevel%
+)
+
+call %PM% run dev -- --host 127.0.0.1
+exit /b %errorlevel%
