@@ -1,0 +1,43 @@
+:root {
+  font-family:
+    "Segoe UI", "SF Pro Display", "Helvetica Neue", sans-serif;
+  color-scheme: dark;
+  background: #020409;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  background: #020409;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+a {
+  color: #abd2ff;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
