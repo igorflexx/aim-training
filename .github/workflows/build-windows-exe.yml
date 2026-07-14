@@ -1,0 +1,52 @@
+name: build-windows-exe
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "website/**"
+      - "exe-version/**"
+      - ".github/workflows/build-windows-exe.yml"
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: website/pnpm-lock.yaml
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install website dependencies
+        run: pnpm install --dir website --frozen-lockfile
+
+      - name: Install desktop dependencies
+        run: pnpm install --dir exe-version
+
+      - name: Build Windows app
+        run: pnpm --dir exe-version tauri build
+
+      - name: Upload Windows bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: aimforge-windows-bundle
+          path: |
+            exe-version/src-tauri/target/release/bundle/**/*.exe
+            exe-version/src-tauri/target/release/bundle/**/*.msi
+          if-no-files-found: warn

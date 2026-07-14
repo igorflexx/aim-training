@@ -344,6 +344,103 @@
   height: 18px;
 }
 
+.player-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(121, 181, 255, 0.16);
+  background:
+    linear-gradient(145deg, rgba(10, 20, 34, 0.96), rgba(5, 12, 21, 0.98)),
+    radial-gradient(circle at top right, rgba(255, 138, 95, 0.16), transparent 42%);
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.24);
+}
+
+.player-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.player-header span,
+.player-header small,
+.player-progress span,
+.player-source {
+  color: rgba(227, 236, 245, 0.7);
+}
+
+.player-header strong {
+  display: block;
+  margin: 6px 0 4px;
+  font-size: 1.35rem;
+  color: #ffffff;
+}
+
+.player-source {
+  align-self: flex-start;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(121, 181, 255, 0.14);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.player-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.player-controls .inline-button {
+  margin-top: 0;
+}
+
+.player-progress {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.player-progress input {
+  width: 100%;
+}
+
+.audio-dropzone {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 18px;
+  padding: 20px;
+  border: 1px dashed rgba(121, 181, 255, 0.28);
+  border-radius: 18px;
+  background: rgba(7, 15, 26, 0.72);
+  transition:
+    border-color 0.18s ease,
+    transform 0.18s ease,
+    background 0.18s ease;
+}
+
+.audio-dropzone strong {
+  font-size: 1.05rem;
+  color: #f7fbff;
+}
+
+.audio-dropzone p {
+  max-width: 620px;
+  color: rgba(227, 236, 245, 0.74);
+}
+
+.audio-dropzone--active {
+  border-color: rgba(255, 148, 92, 0.82);
+  background: rgba(24, 18, 18, 0.82);
+  transform: translateY(-1px);
+}
+
 .history-list {
   display: flex;
   flex-direction: column;
@@ -444,8 +541,13 @@
     flex-direction: column;
   }
 
+  .player-header,
   .history-item {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .player-progress {
+    grid-template-columns: 1fr;
   }
 }

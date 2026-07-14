@@ -1,6 +1,14 @@
 import './App.css'
 
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type CSSProperties,
+  type DragEvent,
+} from 'react'
 
 import { AimTrainerScene } from './components/AimTrainerScene'
 import {
@@ -26,7 +34,39 @@ import type {
   TrainerSettings,
 } from './types'
 
-type MenuPanel = 'main' | 'settings' | 'crosshair' | 'about'
+type MenuPanel = 'main' | 'settings' | 'crosshair' | 'audio' | 'about'
+
+type AudioTrack = {
+  id: string
+  title: string
+  artist: string
+  src: string
+  source: 'default' | 'custom'
+}
+
+const DEFAULT_AUDIO_TRACKS: AudioTrack[] = [
+  {
+    id: 'what-troubles-you',
+    title: 'что тебя гложет',
+    artist: 'k0vertessence, B4YLUm',
+    src: '/audio/what-troubles-you.mp3',
+    source: 'default',
+  },
+  {
+    id: 'lost',
+    title: 'проиграл',
+    artist: 'Slom',
+    src: '/audio/lost.mp3',
+    source: 'default',
+  },
+  {
+    id: 'contract',
+    title: 'КОНТРАКТ',
+    artist: 'VUAL',
+    src: '/audio/contract.mp3',
+    source: 'default',
+  },
+]
 
 const defaultSettings: TrainerSettings = {
   selectedGame: 'cs2',
@@ -44,6 +84,10 @@ const defaultSettings: TrainerSettings = {
     dot: true,
     tStyle: false,
   },
+  audio: {
+    volume: 0.4,
+    selectedTrackId: DEFAULT_AUDIO_TRACKS[0].id,
+  },
 }
 
 const emptyFeedback: SessionFeedback = {
@@ -51,7 +95,8 @@ const emptyFeedback: SessionFeedback = {
   headline: 'Тренировка готова.',
   recommendation:
     'Выбери профиль, введи свою сенсу и запускай полноэкранный Grind Shot 3x3.',
-  liveTip: 'Основа конвертации берется из CS2, а остальные игры пересчитываются относительно нее.',
+  liveTip:
+    'Основа конвертации берется из CS2, а остальные игры пересчитываются относительно нее.',
 }
 
 function createDefaultLiveStats(roundDurationSec: number): LiveStats {
@@ -84,6 +129,20 @@ function sanitizeNumber(value: string, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
+function formatAudioTime(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) {
+    return '0:00'
+  }
+
+  const minutes = Math.floor(value / 60)
+  const seconds = Math.floor(value % 60)
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`
+}
+
+function stripMp3Extension(fileName: string): string {
+  return fileName.replace(/\.mp3$/i, '')
+}
+
 function App() {
   const [settings, setSettings] = useState<TrainerSettings>(() =>
     loadSettings(defaultSettings),
@@ -102,7 +161,17 @@ function App() {
   const [isLocked, setIsLocked] = useState(false)
   const [converterSourceGame, setConverterSourceGame] =
     useState<GameId>('valorant')
-  const [converterSourceSensitivity, setConverterSourceSensitivity] = useState(0.35)
+  const [converterSourceSensitivity, setConverterSourceSensitivity] =
+    useState(0.35)
+  const [customTracks, setCustomTracks] = useState<AudioTrack[]>([])
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false)
+  const [audioProgress, setAudioProgress] = useState(0)
+  const [audioDuration, setAudioDuration] = useState(0)
+  const [isTrackDragActive, setIsTrackDragActive] = useState(false)
+
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const customTrackUrlsRef = useRef<string[]>([])
 
   useEffect(() => {
     saveSettings(settings)
@@ -125,6 +194,70 @@ function App() {
       window.removeEventListener('keydown', handleKeyDown)
     }
   }, [])
+
+  useEffect(() => {
+    customTrackUrlsRef.current = customTracks.map((track) => track.src)
+  }, [customTracks])
+
+  useEffect(() => {
+    return () => {
+      customTrackUrlsRef.current.forEach((trackUrl) => {
+        URL.revokeObjectURL(trackUrl)
+      })
+    }
+  }, [])
+
+  const allTracks = useMemo(
+    () => [...DEFAULT_AUDIO_TRACKS, ...customTracks],
+    [customTracks],
+  )
+
+  const activeTrack =
+    allTracks.find((track) => track.id === settings.audio.selectedTrackId) ??
+    allTracks[0] ??
+    null
+
+  useEffect(() => {
+    if (
+      activeTrack &&
+      activeTrack.id !== settings.audio.selectedTrackId
+    ) {
+      setSettings((current) => ({
+        ...current,
+        audio: {
+          ...current.audio,
+          selectedTrackId: activeTrack.id,
+        },
+      }))
+    }
+  }, [activeTrack, settings.audio.selectedTrackId])
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) {
+      return
+    }
+
+    audio.volume = settings.audio.volume
+  }, [settings.audio.volume])
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio || !activeTrack) {
+      return
+    }
+
+    audio.volume = settings.audio.volume
+
+    if (isAudioPlaying) {
+      void audio.play().catch(() => {
+        setIsAudioPlaying(false)
+      })
+      return
+    }
+
+    audio.pause()
+  }, [activeTrack, isAudioPlaying, settings.audio.volume])
 
   const equivalents = useMemo(
     () => getEquivalentSensitivities(settings.selectedGame, settings.sensitivity),
@@ -155,6 +288,16 @@ function App() {
 
   function updateSettings(patch: Partial<TrainerSettings>) {
     setSettings((current) => ({ ...current, ...patch }))
+  }
+
+  function updateAudio(patch: Partial<TrainerSettings['audio']>) {
+    setSettings((current) => ({
+      ...current,
+      audio: {
+        ...current.audio,
+        ...patch,
+      },
+    }))
   }
 
   function updateCrosshair<K extends keyof TrainerSettings['crosshair']>(
@@ -196,6 +339,67 @@ function App() {
         current.sensitivity,
       ),
     }))
+  }
+
+  function selectAdjacentTrack(direction: 1 | -1) {
+    if (!allTracks.length || !activeTrack) {
+      return
+    }
+
+    const currentIndex = allTracks.findIndex((track) => track.id === activeTrack.id)
+    const nextIndex =
+      (currentIndex + direction + allTracks.length) % allTracks.length
+
+    updateAudio({
+      selectedTrackId: allTracks[nextIndex].id,
+    })
+    setIsAudioPlaying(true)
+  }
+
+  function handleTrackSelection(trackId: string) {
+    updateAudio({ selectedTrackId: trackId })
+    setIsAudioPlaying(true)
+  }
+
+  function handleTrackFiles(fileList: FileList | File[]) {
+    const acceptedFiles = Array.from(fileList).filter(
+      (file) =>
+        file.type === 'audio/mpeg' || file.name.toLowerCase().endsWith('.mp3'),
+    )
+
+    if (!acceptedFiles.length) {
+      return
+    }
+
+    const nextTracks = acceptedFiles.map((file) => ({
+      id: crypto.randomUUID(),
+      title: stripMp3Extension(file.name),
+      artist: 'Пользовательский трек',
+      src: URL.createObjectURL(file),
+      source: 'custom' as const,
+    }))
+
+    setCustomTracks((current) => [...nextTracks, ...current])
+    updateAudio({
+      selectedTrackId: nextTracks[0].id,
+    })
+    setIsAudioPlaying(true)
+  }
+
+  function handleFileInputChange(event: ChangeEvent<HTMLInputElement>) {
+    if (event.target.files?.length) {
+      handleTrackFiles(event.target.files)
+      event.target.value = ''
+    }
+  }
+
+  function handleAudioDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault()
+    setIsTrackDragActive(false)
+
+    if (event.dataTransfer.files.length) {
+      handleTrackFiles(event.dataTransfer.files)
+    }
   }
 
   function handleSessionComplete(
@@ -240,6 +444,24 @@ function App() {
 
   return (
     <div className="app-root">
+      <audio
+        ref={audioRef}
+        onDurationChange={(event) => {
+          setAudioDuration(event.currentTarget.duration || 0)
+        }}
+        onEnded={() => selectAdjacentTrack(1)}
+        onLoadedMetadata={(event) => {
+          setAudioDuration(event.currentTarget.duration || 0)
+        }}
+        onPause={() => setIsAudioPlaying(false)}
+        onPlay={() => setIsAudioPlaying(true)}
+        onTimeUpdate={(event) => {
+          setAudioProgress(event.currentTarget.currentTime)
+        }}
+        preload="metadata"
+        src={activeTrack?.src}
+      />
+
       <div className="scene-shell">
         <AimTrainerScene
           settings={settings}
@@ -288,7 +510,13 @@ function App() {
         </div>
         <div className="hud-card compact align-right">
           <span>Статус</span>
-          <strong>{menuOpen ? 'Меню открыто' : isLocked ? 'Тренировка идет' : 'Кликни для захвата мыши'}</strong>
+          <strong>
+            {menuOpen
+              ? 'Меню открыто'
+              : isLocked
+                ? 'Тренировка идет'
+                : 'Кликни для захвата мыши'}
+          </strong>
           <span>
             {menuOpen
               ? 'Esc закрывает меню и возвращает в тренировку.'
@@ -350,6 +578,13 @@ function App() {
                     type="button"
                   >
                     Настроить прицел
+                  </button>
+                  <button
+                    className="menu-button secondary"
+                    onClick={() => setActivePanel('audio')}
+                    type="button"
+                  >
+                    Настройки звука
                   </button>
                   <button
                     className="menu-button secondary"
@@ -586,7 +821,9 @@ function App() {
                       <strong>{convertedFromSource}</strong>
                       <button
                         className="inline-button"
-                        onClick={() => updateSettings({ sensitivity: convertedFromSource })}
+                        onClick={() =>
+                          updateSettings({ sensitivity: convertedFromSource })
+                        }
                         type="button"
                       >
                         Применить
@@ -725,6 +962,143 @@ function App() {
                       />
                       <span>T-style</span>
                     </label>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {activePanel === 'audio' ? (
+              <div className="content-stack">
+                <div className="section-card">
+                  <h2>Звук и плейлист</h2>
+                  <div className="field-grid">
+                    <label className="field">
+                      <span>Текущий трек</span>
+                      <select
+                        onChange={(event) => handleTrackSelection(event.target.value)}
+                        value={activeTrack?.id ?? ''}
+                      >
+                        {allTracks.map((track) => (
+                          <option key={track.id} value={track.id}>
+                            {track.artist} - {track.title}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>Громкость: {Math.round(settings.audio.volume * 100)}%</span>
+                      <input
+                        max="1"
+                        min="0"
+                        onChange={(event) =>
+                          updateAudio({
+                            volume: sanitizeNumber(
+                              event.target.value,
+                              settings.audio.volume,
+                            ),
+                          })
+                        }
+                        step="0.01"
+                        type="range"
+                        value={settings.audio.volume}
+                      />
+                    </label>
+                  </div>
+
+                  <div className="player-card">
+                    <div className="player-header">
+                      <div>
+                        <span>Мини-плеер</span>
+                        <strong>{activeTrack?.title ?? 'Трек не выбран'}</strong>
+                        <small>{activeTrack?.artist ?? 'Выбери музыку для тренировки'}</small>
+                      </div>
+                      <span className="player-source">
+                        {activeTrack?.source === 'custom'
+                          ? 'Свой mp3'
+                          : 'Дефолтный трек'}
+                      </span>
+                    </div>
+
+                    <div className="player-controls">
+                      <button
+                        className="inline-button"
+                        onClick={() => selectAdjacentTrack(-1)}
+                        type="button"
+                      >
+                        Назад
+                      </button>
+                      <button
+                        className="inline-button"
+                        onClick={() => setIsAudioPlaying((current) => !current)}
+                        type="button"
+                      >
+                        {isAudioPlaying ? 'Пауза' : 'Плей'}
+                      </button>
+                      <button
+                        className="inline-button"
+                        onClick={() => selectAdjacentTrack(1)}
+                        type="button"
+                      >
+                        Дальше
+                      </button>
+                    </div>
+
+                    <div className="player-progress">
+                      <span>{formatAudioTime(audioProgress)}</span>
+                      <input
+                        max={audioDuration || 0}
+                        min="0"
+                        onChange={(event) => {
+                          const nextValue = sanitizeNumber(event.target.value, audioProgress)
+                          setAudioProgress(nextValue)
+
+                          if (audioRef.current) {
+                            audioRef.current.currentTime = nextValue
+                          }
+                        }}
+                        step="0.1"
+                        type="range"
+                        value={Math.min(audioProgress, audioDuration || 0)}
+                      />
+                      <span>{formatAudioTime(audioDuration)}</span>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`audio-dropzone ${isTrackDragActive ? 'audio-dropzone--active' : ''}`}
+                    onDragEnter={(event) => {
+                      event.preventDefault()
+                      setIsTrackDragActive(true)
+                    }}
+                    onDragLeave={(event) => {
+                      event.preventDefault()
+                      setIsTrackDragActive(false)
+                    }}
+                    onDragOver={(event) => {
+                      event.preventDefault()
+                      setIsTrackDragActive(true)
+                    }}
+                    onDrop={handleAudioDrop}
+                  >
+                    <strong>Перетащи сюда свой mp3</strong>
+                    <p>
+                      Можно кинуть файл прямо в окно или выбрать его вручную.
+                      Трек сразу появится в плейлисте и начнет играть.
+                    </p>
+                    <button
+                      className="inline-button"
+                      onClick={() => fileInputRef.current?.click()}
+                      type="button"
+                    >
+                      Выбрать mp3
+                    </button>
+                    <input
+                      accept=".mp3,audio/mpeg"
+                      hidden
+                      onChange={handleFileInputChange}
+                      ref={fileInputRef}
+                      type="file"
+                    />
                   </div>
                 </div>
               </div>

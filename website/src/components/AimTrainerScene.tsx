@@ -382,6 +382,8 @@ function ArenaController({
     }
   })
 
+  const activeTargetPosition = targetPositions[activeTargetIndex]
+
   return (
     <>
       <color attach="background" args={['#04070f']} />
@@ -427,24 +429,20 @@ function ArenaController({
         />
       </mesh>
 
-      {targetPositions.map((position, index) => {
-        const isActive = index === activeTargetIndex
-
-        return (
-          <group key={`${position.join('-')}-${index}`} position={position}>
-            <mesh castShadow receiveShadow>
-              <sphereGeometry args={[settings.targetSize, 36, 36]} />
-              <meshStandardMaterial
-                color={isActive ? '#ffffff' : '#e7eef4'}
-                emissive={isActive ? '#ffffff' : '#5c6770'}
-                emissiveIntensity={isActive ? 1.65 : 0.16}
-                roughness={0.22}
-                metalness={0.04}
-              />
-            </mesh>
-          </group>
-        )
-      })}
+      {activeTargetPosition ? (
+        <group position={activeTargetPosition}>
+          <mesh castShadow receiveShadow>
+            <sphereGeometry args={[settings.targetSize, 36, 36]} />
+            <meshStandardMaterial
+              color="#ffffff"
+              emissive="#ffffff"
+              emissiveIntensity={1.65}
+              roughness={0.22}
+              metalness={0.04}
+            />
+          </mesh>
+        </group>
+      ) : null}
     </>
   )
 }

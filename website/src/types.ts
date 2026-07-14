@@ -37,6 +37,11 @@ export interface CrosshairSettings {
   tStyle: boolean
 }
 
+export interface AudioSettings {
+  volume: number
+  selectedTrackId: string
+}
+
 export interface TrainerSettings {
   selectedGame: GameId
   sensitivity: number
@@ -45,6 +50,7 @@ export interface TrainerSettings {
   targetSize: number
   goalScore: number
   crosshair: CrosshairSettings
+  audio: AudioSettings
 }
 
 export interface ShotTelemetry {

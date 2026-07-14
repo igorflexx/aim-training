@@ -11,11 +11,6 @@ node_modules
 dist
 dist-ssr
 *.local
-.vite
-installers/macos-arm/AimForge.app
-installers/macos-arm/*.dmg
-installers/windows/*.exe
-installers/windows/*.msi
 
 # Editor directories and files
 .vscode/*
